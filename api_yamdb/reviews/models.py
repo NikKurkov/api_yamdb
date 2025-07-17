@@ -1,5 +1,7 @@
 from django.db import models
 
+from .validators import year_validator
+
 
 class Category(models.Model):
     """Модель для категории."""
@@ -59,7 +61,8 @@ class Title(models.Model):
         db_index=True,
         help_text='Укажите год выпуска',
         null=True,
-        blank=True
+        blank=True,
+        validators=[year_validator]
     )
     description = models.TextField(
         verbose_name='Описание',
