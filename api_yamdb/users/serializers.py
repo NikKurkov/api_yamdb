@@ -22,7 +22,11 @@ class SignupSerializer(serializers.Serializer):
     )
 
     def validate(self, attrs):
-        """Разрешаем повторный запрос только если пара email/username совпадает."""
+        """
+        Если такой пользователь уже есть и пара email+username совпадает —
+        разрешаем повторный запрос кода (возвращаем attrs без ошибок).
+        Если email или username занят другим человеком — ошибка 400.
+        """
         email = attrs['email']
         username = attrs['username']
 
@@ -34,3 +38,9 @@ class SignupSerializer(serializers.Serializer):
                     'Пользователь с таким email или username уже существует.'
                 )
         return attrs
+
+
+class TokenObtainSerializer(serializers.Serializer):
+    """Принимает username и confirmation_code, просто валидирует наличие полей."""
+    username = serializers.CharField(max_length=150, required=True)
+    confirmation_code = serializers.CharField(max_length=64, required=True)

@@ -12,14 +12,15 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import SignupSerializer
+from .serializers import SignupSerializer, TokenObtainSerializer
 
 User = get_user_model()
 
 
 class SignupView(APIView):
-    """Создание (или повторный запрос) пользователя + отправка confirmation_code."""
+    """POST /auth/signup/ – регистрация или повторная выдача confirmation_code."""
     permission_classes = (AllowAny,)
 
     def post(self, request):
@@ -29,15 +30,15 @@ class SignupView(APIView):
         email = serializer.validated_data['email']
         username = serializer.validated_data['username']
 
-        # получаем или создаём пользователя
+        # создаём или получаем пользователя
         user, _ = User.objects.get_or_create(email=email, username=username)
 
-        # генерируем / обновляем код
+        # генерируем новый код (если каждый раз нужен новый)
         confirmation_code = default_token_generator.make_token(user)
         user.confirmation_code = confirmation_code
         user.save(update_fields=('confirmation_code',))
 
-        # отправляем письмо (в консоль, если EMAIL_BACKEND так настроен)
+        # «Отправляем» письмо – у нас backend выводит в консоль
         send_mail(
             subject='YaMDb confirmation code',
             message=f'Ваш код подтверждения: {confirmation_code}',
@@ -46,3 +47,28 @@ class SignupView(APIView):
             fail_silently=False,
         )
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class TokenView(APIView):
+    """POST /auth/token/ – выдаёт JWT, если confirmation_code верный."""
+    permission_classes = (AllowAny,)
+
+    def post(self, request):
+        serializer = TokenObtainSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        username = serializer.validated_data['username']
+        code = serializer.validated_data['confirmation_code']
+
+        user = get_object_or_404(User, username=username)
+
+        if user.confirmation_code != code:
+            # код не совпал – 400
+            return Response(
+                {'confirmation_code': 'Неверный код подтверждения.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # генерируем access‑токен (refresh не требуется по ТЗ)
+        access = RefreshToken.for_user(user).access_token
+        return Response({'token': str(access)}, status=status.HTTP_200_OK)
