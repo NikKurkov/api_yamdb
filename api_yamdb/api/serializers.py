@@ -21,6 +21,10 @@ class CategorySerializer(serializers.ModelSerializer):
         max_length=50,
         error_messages={
             'max_length': 'Длина поля `slug` должна быть ограничена 50 символами',
+            'invalid': (
+                'Поле `slug` может содержать только буквы латиницы, цифры, '
+                'дефисы и подчёркивания'
+            ),
         },
         validators=[
             UniqueValidator(
