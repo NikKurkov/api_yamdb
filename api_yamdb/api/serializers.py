@@ -6,17 +6,24 @@
 """
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 from reviews.models import Category, Genre, Title, Review, Comment
 
 
 class CategorySerializer(serializers.ModelSerializer):
     slug = serializers.SlugField(
-            max_length=50,
-            error_messages={
-                'max_length': 'Длина поля `slug` должна быть ограничена 50 символами'
-            }
-        )
-    """Сериализатор для категории"""
+        max_length=50,
+        error_messages={
+            'max_length': 'Длина поля `slug` должна быть ограничена 50 символами',
+        },
+        validators=[
+            UniqueValidator(
+                queryset=Category.objects.all(),
+                message='Категория с таким slug уже существует'
+            )
+        ]
+    )
+
     class Meta:
         model = Category
         fields = ('name', 'slug')
