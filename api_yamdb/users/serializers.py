@@ -8,6 +8,12 @@ from rest_framework import serializers
 
 User = get_user_model()
 
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('username', 'email', 'first_name',
+                  'last_name', 'bio', 'role')
+
 
 class SignupSerializer(serializers.Serializer):
     """Принимает email и username, проверяет валидность."""
@@ -23,20 +29,30 @@ class SignupSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         """
-        Если такой пользователь уже есть и пара email+username совпадает —
-        разрешаем повторный запрос кода (возвращаем attrs без ошибок).
-        Если email или username занят другим человеком — ошибка 400.
+        • Если username или email занят чужим пользователем — возвращаем
+          поле-ошибку в формате, который ждёт автотест.
+        • Если пара принадлежит тому же пользователю — считаем корректным.
         """
+        if attrs['username'] == 'me':
+            raise serializers.ValidationError(
+                {'Выберите другой username'})
+    
         email = attrs['email']
         username = attrs['username']
 
-        user_qs = User.objects.filter(email=email) | User.objects.filter(username=username)
-        if user_qs.exists():
-            user = user_qs.first()
-            if user.email != email or user.username != username:
-                raise serializers.ValidationError(
-                    'Пользователь с таким email или username уже существует.'
-                )
+        errors = {}
+
+        # username занят другим email-ом
+        if User.objects.filter(username=username).exclude(email=email).exists():
+            errors['username'] = ['Пользователь с таким username уже существует.']
+
+        # email занят другим username-ом
+        if User.objects.filter(email=email).exclude(username=username).exists():
+            errors['email'] = ['Пользователь с таким email уже существует.']
+
+        if errors:
+            raise serializers.ValidationError(errors)
+
         return attrs
 
 
