@@ -11,6 +11,12 @@ from reviews.models import Category, Genre, Title, Review, Comment
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    name = serializers.CharField(
+        max_length=256,
+        error_messages={
+            'max_length': 'Длина поля `name` должна быть ограничена 256 символами',
+        }
+    )
     slug = serializers.SlugField(
         max_length=50,
         error_messages={
