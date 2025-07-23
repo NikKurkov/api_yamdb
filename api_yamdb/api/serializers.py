@@ -97,6 +97,16 @@ class TitleWriteSerializer(serializers.ModelSerializer):
         model = Title
         fields = ('name', 'year', 'category', 'genre')
 
+    def validate_genre(self, value):
+        """
+        Запрещаем создавать Title без жанров.
+        """
+        if not value:
+            raise serializers.ValidationError(
+                'Поле `genre` не может быть пустым.'
+            )
+        return value
+
 
 class ReviewSerializer(serializers.ModelSerializer):
     """Сериализатор для рецензий."""
