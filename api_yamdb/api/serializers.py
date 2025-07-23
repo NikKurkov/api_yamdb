@@ -51,6 +51,7 @@ class TitleReadSerializer(serializers.ModelSerializer):
     category = CategorySerializer(read_only=True)
     genre = GenreSerializer(many=True, read_only=True)
     rating = serializers.IntegerField(read_only=True)
+    description = serializers.SerializerMethodField()
 
     class Meta:
         model = Title
@@ -59,6 +60,11 @@ class TitleReadSerializer(serializers.ModelSerializer):
             'description', 'rating',
             'genre', 'category'
         )
+
+    def get_description(self, obj):
+        # Если в базе description = NULL, возвращаем пустую строку.
+        return obj.description or ""
+
 
 class TitleWriteSerializer(serializers.ModelSerializer):
     """Сериализатор для названий произведений (запись)"""
