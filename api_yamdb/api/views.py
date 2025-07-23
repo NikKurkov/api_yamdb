@@ -76,6 +76,22 @@ class TitleViewSet(viewsets.ModelViewSet):
             headers=headers
         )
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)   # True для PATCH
+        instance = self.get_object()
+
+        write_serializer = self.get_serializer(
+            instance, data=request.data, partial=partial
+        )
+        write_serializer.is_valid(raise_exception=True)
+        self.perform_update(write_serializer)
+
+        read_serializer = TitleReadSerializer(
+            write_serializer.instance,
+            context={'request': request}
+        )
+        return Response(read_serializer.data, status=status.HTTP_200_OK)
+
 
 class ReviewViewSet(viewsets.ModelViewSet):
     permission_classes = (IsAuthorModeratorAdminOrReadOnly,)
