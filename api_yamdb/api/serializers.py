@@ -4,6 +4,7 @@
 Сериализаторы для моделей категорий, жанров, названий произведений,
 рецензий, комментариев.
 """
+from django.db.models import Avg
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
@@ -50,7 +51,7 @@ class TitleReadSerializer(serializers.ModelSerializer):
     """Сериализатор для названий произведений (чтение)"""
     category = CategorySerializer(read_only=True)
     genre = GenreSerializer(many=True, read_only=True)
-    rating = serializers.IntegerField(read_only=True)
+    rating = serializers.SerializerMethodField()
     description = serializers.SerializerMethodField()
 
     class Meta:
@@ -62,8 +63,17 @@ class TitleReadSerializer(serializers.ModelSerializer):
         )
 
     def get_description(self, obj):
-        # Если в базе description = NULL, возвращаем пустую строку.
+        """
+        Возвращает description.
+        Если в базе description = NULL, возвращаем пустую строку.
+        """
         return obj.description or ""
+
+    def get_rating(self, obj):
+        """
+        Возвращает средний `score` всех отзывов или `None`, если их нет.
+        """
+        return obj.reviews.aggregate(avg=Avg('score'))['avg']
 
 
 class TitleWriteSerializer(serializers.ModelSerializer):
