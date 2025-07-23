@@ -7,6 +7,7 @@
 """
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import mixins, viewsets, filters, status
 from rest_framework.response import Response
 from reviews.models import Category, Genre, Title, Review, Comment
@@ -47,6 +48,11 @@ class TitleViewSet(viewsets.ModelViewSet):
                 .prefetch_related('genre')
                 )
     filterset_class = TitleFilter
+    filter_backends = (
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter
+        )
 
     # Выбираем сериализатор.
     def get_serializer_class(self):
