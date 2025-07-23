@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from reviews.models import Category, Genre, Title, Review, Comment
+from reviews.validators import year_validator
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -86,6 +87,10 @@ class TitleWriteSerializer(serializers.ModelSerializer):
         slug_field='slug',
         many=True,
         queryset=Genre.objects.all()
+    )
+    year = serializers.IntegerField(
+        required=True,
+        validators=[year_validator]
     )
 
     class Meta:
