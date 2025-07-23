@@ -41,6 +41,7 @@ class GenreViewSet(CategoryViewSet):
 
 
 class TitleViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
     permission_classes = (IsAdminOrReadOnly,)
     queryset = (Title.objects
                 .annotate(rating=Avg('reviews__score'))
