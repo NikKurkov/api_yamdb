@@ -9,6 +9,15 @@ from rest_framework import serializers
 User = get_user_model()
 
 class UserSerializer(serializers.ModelSerializer):
+
+    def validate_username(self, value):
+        """Запрещаем задавать `me` в качестве username (регистронезависимо)."""
+        if value.lower() == 'me':
+            raise serializers.ValidationError(
+                'Имя пользователя "me" запрещено.'
+            )
+        return value
+
     class Meta:
         model = User
         fields = ('username', 'email', 'first_name',

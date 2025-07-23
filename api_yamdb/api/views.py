@@ -7,9 +7,17 @@
 """
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
-from rest_framework import mixins, viewsets, filters
+from rest_framework import mixins, viewsets, filters, status
+from rest_framework.response import Response
 from reviews.models import Category, Genre, Title, Review, Comment
-from .serializers import CategorySerializer, GenreSerializer, TitleReadSerializer, TitleWriteSerializer, ReviewSerializer, CommentSerializer
+from .serializers import (
+    CategorySerializer,
+    GenreSerializer,
+    TitleReadSerializer,
+    TitleWriteSerializer,
+    ReviewSerializer,
+    CommentSerializer,
+)
 from .permissions import IsAdminOrReadOnly, IsAuthorModeratorAdminOrReadOnly
 from .filters import TitleFilter
 
@@ -40,10 +48,27 @@ class TitleViewSet(viewsets.ModelViewSet):
                 )
     filterset_class = TitleFilter
 
+    # Выбираем сериализатор.
     def get_serializer_class(self):
         if self.action in ('list', 'retrieve'):
             return TitleReadSerializer
         return TitleWriteSerializer
+
+    def create(self, request, *args, **kwargs):
+        write_serializer = self.get_serializer(data=request.data)
+        write_serializer.is_valid(raise_exception=True)
+        self.perform_create(write_serializer)
+
+        read_serializer = TitleReadSerializer(
+            write_serializer.instance,
+            context={'request': request}
+        )
+        headers = self.get_success_headers(read_serializer.data)
+        return Response(
+            read_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
