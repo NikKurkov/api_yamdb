@@ -9,7 +9,7 @@ from reviews.models import Title
 class TitleFilter(filters.FilterSet):
     name = filters.CharFilter(field_name='name', lookup_expr='icontains')
     category = filters.CharFilter(field_name='category__slug')
-    genre = filters.CharFilter(field_name='genre__slug', lookup_expr='in') # поддержка ?genre=drama&genre=comedy
+    genre = filters.CharFilter(field_name='genre__slug', lookup_expr='exact')
     year = filters.NumberFilter(field_name='year')
 
     class Meta:
