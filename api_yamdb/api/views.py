@@ -7,9 +7,18 @@
 """
 from django.db.models import Avg
 from django.shortcuts import get_object_or_404
-from rest_framework import mixins, viewsets, filters
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import mixins, viewsets, filters, status
+from rest_framework.response import Response
 from reviews.models import Category, Genre, Title, Review, Comment
-from .serializers import CategorySerializer, GenreSerializer, TitleReadSerializer, TitleWriteSerializer, ReviewSerializer, CommentSerializer
+from .serializers import (
+    CategorySerializer,
+    GenreSerializer,
+    TitleReadSerializer,
+    TitleWriteSerializer,
+    ReviewSerializer,
+    CommentSerializer,
+)
 from .permissions import IsAdminOrReadOnly, IsAuthorModeratorAdminOrReadOnly
 from .filters import TitleFilter
 
@@ -32,6 +41,7 @@ class GenreViewSet(CategoryViewSet):
 
 
 class TitleViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
     permission_classes = (IsAdminOrReadOnly,)
     queryset = (Title.objects
                 .annotate(rating=Avg('reviews__score'))
@@ -39,14 +49,53 @@ class TitleViewSet(viewsets.ModelViewSet):
                 .prefetch_related('genre')
                 )
     filterset_class = TitleFilter
+    filter_backends = (
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter
+        )
 
+    # Выбираем сериализатор.
     def get_serializer_class(self):
         if self.action in ('list', 'retrieve'):
             return TitleReadSerializer
         return TitleWriteSerializer
 
+    def create(self, request, *args, **kwargs):
+        write_serializer = self.get_serializer(data=request.data)
+        write_serializer.is_valid(raise_exception=True)
+        self.perform_create(write_serializer)
+
+        read_serializer = TitleReadSerializer(
+            write_serializer.instance,
+            context={'request': request}
+        )
+        headers = self.get_success_headers(read_serializer.data)
+        return Response(
+            read_serializer.data,
+            status=status.HTTP_201_CREATED,
+            headers=headers
+        )
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)   # True для PATCH
+        instance = self.get_object()
+
+        write_serializer = self.get_serializer(
+            instance, data=request.data, partial=partial
+        )
+        write_serializer.is_valid(raise_exception=True)
+        self.perform_update(write_serializer)
+
+        read_serializer = TitleReadSerializer(
+            write_serializer.instance,
+            context={'request': request}
+        )
+        return Response(read_serializer.data, status=status.HTTP_200_OK)
+
 
 class ReviewViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
     permission_classes = (IsAuthorModeratorAdminOrReadOnly,)
     serializer_class = ReviewSerializer
 
@@ -60,13 +109,19 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
 
 class CommentViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
     permission_classes = (IsAuthorModeratorAdminOrReadOnly,)
     serializer_class = CommentSerializer
 
-    def get_queryset(self):
+    def _get_review(self):
+        title_id = self.kwargs.get('title_id')
         review_id = self.kwargs.get('review_id')
-        return Comment.objects.filter(review__id=review_id)
+        return get_object_or_404(Review, id=review_id, title__id=title_id)
+
+    def get_queryset(self):
+        review = self._get_review()
+        return review.comments.all()
 
     def perform_create(self, serializer):
-        review = get_object_or_404(Review, id=self.kwargs.get('review_id'))
+        review = self._get_review()
         serializer.save(author=self.request.user, review=review)

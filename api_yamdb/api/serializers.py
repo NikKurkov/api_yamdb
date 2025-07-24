@@ -4,13 +4,38 @@
 Сериализаторы для моделей категорий, жанров, названий произведений,
 рецензий, комментариев.
 """
+from django.db.models import Avg
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
+from rest_framework.validators import UniqueValidator
 from reviews.models import Category, Genre, Title, Review, Comment
+from reviews.validators import year_validator
 
 
 class CategorySerializer(serializers.ModelSerializer):
-    """Сериализатор для категории"""
+    name = serializers.CharField(
+        max_length=256,
+        error_messages={
+            'max_length': 'Длина поля `name` должна быть ограничена 256 символами',
+        }
+    )
+    slug = serializers.SlugField(
+        max_length=50,
+        error_messages={
+            'max_length': 'Длина поля `slug` должна быть ограничена 50 символами',
+            'invalid': (
+                'Поле `slug` может содержать только буквы латиницы, цифры, '
+                'дефисы и подчёркивания'
+            ),
+        },
+        validators=[
+            UniqueValidator(
+                queryset=Category.objects.all(),
+                message='Категория с таким slug уже существует'
+            )
+        ]
+    )
+
     class Meta:
         model = Category
         fields = ('name', 'slug')
@@ -27,11 +52,29 @@ class TitleReadSerializer(serializers.ModelSerializer):
     """Сериализатор для названий произведений (чтение)"""
     category = CategorySerializer(read_only=True)
     genre = GenreSerializer(many=True, read_only=True)
-    rating = serializers.IntegerField(read_only=True)
+    rating = serializers.SerializerMethodField()
+    description = serializers.SerializerMethodField()
 
     class Meta:
         model = Title
-        fields = ('category', 'genre', 'name', 'year', 'rating')
+        fields = (
+            'id', 'name', 'year',
+            'description', 'rating',
+            'genre', 'category'
+        )
+
+    def get_description(self, obj):
+        """
+        Возвращает description.
+        Если в базе description = NULL, возвращаем пустую строку.
+        """
+        return obj.description or ""
+
+    def get_rating(self, obj):
+        """
+        Возвращает средний `score` всех отзывов или `None`, если их нет.
+        """
+        return obj.reviews.aggregate(avg=Avg('score'))['avg']
 
 
 class TitleWriteSerializer(serializers.ModelSerializer):
@@ -45,10 +88,29 @@ class TitleWriteSerializer(serializers.ModelSerializer):
         many=True,
         queryset=Genre.objects.all()
     )
+    year = serializers.IntegerField(
+        required=True,
+        validators=[year_validator]
+    )
+    description = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        default=""
+        )
 
     class Meta:
         model = Title
-        fields = ('name', 'year', 'category', 'genre')
+        fields = ('name', 'year', 'category', 'genre', 'description')
+
+    def validate_genre(self, value):
+        """
+        Запрещаем создавать Title без жанров.
+        """
+        if not value:
+            raise serializers.ValidationError(
+                'Поле `genre` не может быть пустым.'
+            )
+        return value
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -57,8 +119,14 @@ class ReviewSerializer(serializers.ModelSerializer):
         read_only=True,
         slug_field='username'
     )
-    score = serializers.IntegerField()
-    title = serializers.PrimaryKeyRelatedField(read_only=True)
+    score = serializers.IntegerField(
+        min_value=1,
+        max_value=10,
+        error_messages={
+            'min_value': 'Оценка должна быть не ниже 1',
+            'max_value': 'Оценка должна быть не выше 10',
+        }
+    )
 
     def validate(self, value):
         author = self.context['request'].user
@@ -76,7 +144,7 @@ class ReviewSerializer(serializers.ModelSerializer):
         return value
 
     class Meta:
-        fields = '__all__'
+        fields = ('id', 'text', 'author', 'score', 'pub_date')
         model = Review
 
 
@@ -86,8 +154,7 @@ class CommentSerializer(serializers.ModelSerializer):
         read_only=True,
         slug_field='username'
     )
-    review = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
-        fields = '__all__'
+        fields = ('id', 'text', 'author', 'pub_date')
         model = Comment

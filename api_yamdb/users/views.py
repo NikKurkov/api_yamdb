@@ -8,15 +8,57 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
-from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework import status, viewsets, filters
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import SignupSerializer, TokenObtainSerializer
+from .serializers import SignupSerializer, TokenObtainSerializer, UserSerializer
+from api.permissions import IsAdmin
 
 User = get_user_model()
+
+
+class UsersViewSet(viewsets.ModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = (IsAdmin,)          # ← остаётся для остальных методов
+    filter_backends = (filters.SearchFilter,)
+    search_fields = ('username', 'email')
+    lookup_field = 'username'
+    
+    http_method_names = ['get', 'post', 'patch', 'delete']
+
+    # ─────────  /users/me/  ─────────
+    @action(
+        detail=False,                # /users/me/ (без PK)
+        methods=['get', 'patch'],
+        permission_classes=[IsAuthenticated],
+    )
+    def me(self, request):
+        """
+        GET  /users/me/    – вернуть свой профиль
+        PATCH /users/me/   – частично изменить (кроме role)
+        """
+        user = request.user
+        if request.method == 'GET':
+            serializer = self.get_serializer(user)
+            return Response(serializer.data)
+
+        # PATCH
+        serializer = self.get_serializer(
+            user, data=request.data, partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+
+        # запрещаем менять роль обычным пользователям
+        if not user.is_admin and 'role' in serializer.validated_data:
+            serializer.validated_data.pop('role')
+
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class SignupView(APIView):
