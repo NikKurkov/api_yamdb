@@ -127,7 +127,6 @@ class ReviewSerializer(serializers.ModelSerializer):
             'max_value': 'Оценка должна быть не выше 10',
         }
     )
-    title = serializers.PrimaryKeyRelatedField(read_only=True)
 
     def validate(self, value):
         author = self.context['request'].user
@@ -155,7 +154,6 @@ class CommentSerializer(serializers.ModelSerializer):
         read_only=True,
         slug_field='username'
     )
-    review = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         fields = ('id', 'text', 'author', 'pub_date')
