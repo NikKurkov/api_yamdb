@@ -92,10 +92,11 @@ class TitleWriteSerializer(serializers.ModelSerializer):
         required=True,
         validators=[year_validator]
     )
+    description = serializers.CharField(required=True, allow_blank=False)
 
     class Meta:
         model = Title
-        fields = ('name', 'year', 'category', 'genre')
+        fields = ('name', 'year', 'category', 'genre', 'description')
 
     def validate_genre(self, value):
         """
