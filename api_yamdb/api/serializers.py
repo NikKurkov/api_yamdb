@@ -115,7 +115,14 @@ class ReviewSerializer(serializers.ModelSerializer):
         read_only=True,
         slug_field='username'
     )
-    score = serializers.IntegerField()
+    score = serializers.IntegerField(
+        min_value=1,
+        max_value=10,
+        error_messages={
+            'min_value': 'Оценка должна быть не ниже 1',
+            'max_value': 'Оценка должна быть не выше 10',
+        }
+    )
     title = serializers.PrimaryKeyRelatedField(read_only=True)
 
     def validate(self, value):
