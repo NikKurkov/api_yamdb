@@ -95,6 +95,7 @@ class TitleViewSet(viewsets.ModelViewSet):
 
 
 class ReviewViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
     permission_classes = (IsAuthorModeratorAdminOrReadOnly,)
     serializer_class = ReviewSerializer
 
@@ -108,6 +109,7 @@ class ReviewViewSet(viewsets.ModelViewSet):
 
 
 class CommentViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
     permission_classes = (IsAuthorModeratorAdminOrReadOnly,)
     serializer_class = CommentSerializer
 
