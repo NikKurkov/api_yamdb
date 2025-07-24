@@ -92,7 +92,11 @@ class TitleWriteSerializer(serializers.ModelSerializer):
         required=True,
         validators=[year_validator]
     )
-    description = serializers.CharField(required=True, allow_blank=False)
+    description = serializers.CharField(
+        required=False,
+        allow_blank=False,
+        default=""
+        )
 
     class Meta:
         model = Title
